@@ -1,159 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useCallback } from "react";
 import {
   Upload,
   FileSearch,
   Clock3,
   Loader2,
   Terminal,
+  Zap,
 } from "lucide-react";
-
 import api from "@/lib/axios";
-
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 interface Analysis {
   id: number;
-
   filename: string;
-
   sha256: string;
-
   suspiciousScore: number;
-
   createdAt: string;
 }
 
 export default function UploadPage() {
   const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [history, setHistory] = useState<Analysis[]>([]);
+  const [statusText, setStatusText] = useState("Analyze File");
 
-  const [file, setFile] =
-    useState<File | null>(null);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [historyLoading, setHistoryLoading] =
-    useState(true);
-
-  const [history, setHistory] =
-    useState<Analysis[]>([]);
-
-  const [statusText, setStatusText] =
-    useState("Analyze File");
-
-  /*
-  |--------------------------------------------------------------------------
-  | Fetch History
-  |--------------------------------------------------------------------------
-  */
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
-      const res = await api.get(
-        "/analyze/history"
-      );
-
+      const res = await api.get("/analyze/history");
       setHistory(res.data.analyses || []);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to load history", error);
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHistory();
-  }, []);
-
-  /*
-  |--------------------------------------------------------------------------
-  | Upload File
-  |--------------------------------------------------------------------------
-  */
+  }, [fetchHistory]);
 
   const handleUpload = async () => {
     if (!file) {
-      return alert(
-        "Please select an EXE file"
-      );
+      return alert("Please select an executable (.exe) file");
     }
 
     try {
       setLoading(true);
+      setStatusText("Hashing binary & checking Adaptive Memory...");
 
-      /*
-      |--------------------------------------------------------------------------
-      | Fake Terminal Status Animation
-      |--------------------------------------------------------------------------
-      */
-
-      setStatusText(
-        "Uploading Executable..."
-      );
-
-      setTimeout(() => {
-        setStatusText(
-          "Parsing PE Headers..."
-        );
-      }, 700);
-
-      setTimeout(() => {
-        setStatusText(
-          "Analyzing Imports..."
-        );
-      }, 1400);
-
-      setTimeout(() => {
-        setStatusText(
-          "Calculating Entropy..."
-        );
-      }, 2100);
-
-      setTimeout(() => {
-        setStatusText(
-          "Generating Report..."
-        );
-      }, 2800);
-
-      const formData =
-        new FormData();
-
+      const formData = new FormData();
       formData.append("file", file);
 
-      const res = await api.post(
-        "/analyze/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
-        }
-      );
+      const res = await api.post("/analyze/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-      /*
-      |--------------------------------------------------------------------------
-      | Redirect To Analysis Page
-      |--------------------------------------------------------------------------
-      */
+      if (res.data.fromAdaptiveMemory) {
+        setStatusText("⚡ Match found in Adaptive Memory! Loading instant report...");
+      } else {
+        setStatusText("Completed static analysis & feature vector extraction...");
+      }
 
       setTimeout(() => {
-        router.push(
-          `/analysis/${res.data.analysisId}`
-        );
-      }, 3500);
-    } catch (error: any) {
+        router.push(`/analysis/${res.data.analysisId}`);
+      }, 1200);
+    } catch (error: unknown) {
       console.error(error);
-
-      alert(
-        error.response?.data?.message
-      );
-
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || "Analysis failed");
+      } else {
+        alert("An unexpected error occurred during upload.");
+      }
       setLoading(false);
-
       setStatusText("Analyze File");
     }
   };
@@ -173,7 +98,7 @@ export default function UploadPage() {
         <div className="mb-12">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
             <Terminal className="h-4 w-4" />
-            PE Guardian Analysis Engine
+            AI-Driven Static PE Guardian Engine
           </div>
 
           <h1 className="text-5xl font-black tracking-tight">
@@ -181,12 +106,9 @@ export default function UploadPage() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-lg leading-8 text-zinc-400">
-            Upload Windows executables and
-            inspect PE headers, suspicious
-            imports, entropy levels, and
-            malware indicators through an
-            advanced cybersecurity analysis
-            pipeline.
+            Upload Windows executables to inspect real PE headers, section entropy,
+            malicious Win32 API import heuristics, and leverage SHA-256 Adaptive Memory
+            for instant pre-execution intelligence.
           </p>
         </div>
 
@@ -202,38 +124,22 @@ export default function UploadPage() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-bold">
-                    Upload EXE
-                  </h2>
-
-                  <p className="text-sm text-zinc-500">
-                    Analyze executable files
-                  </p>
+                  <h2 className="text-2xl font-bold">Upload EXE</h2>
+                  <p className="text-sm text-zinc-500">Analyze executable binaries</p>
                 </div>
               </div>
 
               {/* Upload Box */}
               <label className="group flex h-64 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-white/10 bg-black/20 transition duration-300 hover:border-emerald-500/40 hover:bg-emerald-500/5">
                 <Upload className="mb-4 h-14 w-14 text-zinc-600 transition group-hover:scale-110 group-hover:text-emerald-400" />
-
-                <p className="text-center text-lg text-zinc-300">
-                  Drag & drop EXE here
-                </p>
-
-                <p className="mt-2 text-sm text-zinc-500">
-                  or click to browse
-                </p>
+                <p className="text-center text-lg text-zinc-300">Drag & drop EXE here</p>
+                <p className="mt-2 text-sm text-zinc-500">or click to browse</p>
 
                 <input
                   type="file"
-                  accept=".exe"
+                  accept=".exe,.dll,.sys"
                   className="hidden"
-                  onChange={(e) =>
-                    setFile(
-                      e.target.files?.[0] ||
-                        null
-                    )
-                  }
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
                 />
               </label>
 
@@ -242,19 +148,10 @@ export default function UploadPage() {
                 <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-5">
                   <div className="flex items-center gap-3">
                     <FileSearch className="h-6 w-6 text-emerald-400" />
-
-                    <div>
-                      <p className="font-medium text-white">
-                        {file.name}
-                      </p>
-
+                    <div className="overflow-hidden">
+                      <p className="truncate font-medium text-white">{file.name}</p>
                       <p className="mt-1 text-sm text-zinc-500">
-                        {(
-                          file.size /
-                          1024 /
-                          1024
-                        ).toFixed(2)}{" "}
-                        MB
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
                   </div>
@@ -270,13 +167,11 @@ export default function UploadPage() {
                 {loading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-
                     {statusText}
                   </>
                 ) : (
                   <>
                     <Terminal className="h-5 w-5" />
-
                     Analyze File
                   </>
                 )}
@@ -289,22 +184,13 @@ export default function UploadPage() {
                     <div className="h-3 w-3 rounded-full bg-red-500" />
                     <div className="h-3 w-3 rounded-full bg-yellow-500" />
                     <div className="h-3 w-3 rounded-full bg-green-500" />
-
-                    <span className="ml-3 text-xs text-zinc-500">
-                      analysis_terminal.exe
-                    </span>
+                    <span className="ml-3 text-xs text-zinc-500">pipeline_terminal.exe</span>
                   </div>
 
                   <div className="space-y-2 p-4 font-mono text-sm">
-                    <p className="text-emerald-400">
-                      root@guardian:~$ {statusText}
-                    </p>
-
+                    <p className="text-emerald-400">root@guardian:~$ {statusText}</p>
                     <div className="flex items-center">
-                      <span className="mr-2 text-zinc-600">
-                        root@guardian:~$
-                      </span>
-
+                      <span className="mr-2 text-zinc-600">root@guardian:~$</span>
                       <div className="h-4 w-2 animate-pulse bg-emerald-400" />
                     </div>
                   </div>
@@ -319,16 +205,9 @@ export default function UploadPage() {
               {/* Header */}
               <div className="mb-8 flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-bold">
-                    Previous Analyses
-                  </h2>
-
-                  <p className="mt-2 text-zinc-500">
-                    Access your previously
-                    scanned executables
-                  </p>
+                  <h2 className="text-3xl font-bold">Analysis History</h2>
+                  <p className="mt-2 text-zinc-500">Access previously scanned binaries from Adaptive Memory</p>
                 </div>
-
                 <Clock3 className="h-8 w-8 text-zinc-600" />
               </div>
 
@@ -338,69 +217,49 @@ export default function UploadPage() {
                   <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
                 </div>
               ) : history.length === 0 ? (
-                /* Empty */
                 <div className="flex h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-black/20">
                   <FileSearch className="mb-5 h-14 w-14 text-zinc-700" />
-
-                  <p className="text-lg text-zinc-400">
-                    No analyses found
-                  </p>
-
-                  <p className="mt-2 text-sm text-zinc-600">
-                    Upload your first executable
-                  </p>
+                  <p className="text-lg text-zinc-400">No analyses found</p>
+                  <p className="mt-2 text-sm text-zinc-600">Upload your first executable to begin</p>
                 </div>
               ) : (
-                /* History Cards */
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[580px] overflow-y-auto pr-2">
                   {history.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() =>
-                        router.push(
-                          `/analysis/${item.id}`
-                        )
-                      }
+                      onClick={() => router.push(`/analysis/${item.id}`)}
                       className="group cursor-pointer rounded-2xl border border-white/10 bg-black/20 p-5 transition duration-300 hover:border-emerald-500/30 hover:bg-white/5"
                     >
-                      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        {/* Left */}
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-white transition group-hover:text-emerald-400">
-                            {item.filename}
-                          </h3>
-
-                          <p className="mt-2 break-all text-sm text-zinc-500">
-                            {item.sha256}
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold text-white transition group-hover:text-emerald-400">
+                              {item.filename}
+                            </h3>
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400 border border-emerald-500/20">
+                              <Zap className="h-3 w-3" /> Indexed
+                            </span>
+                          </div>
+                          <p className="mt-2 break-all font-mono text-xs text-zinc-500">
+                            SHA-256: {item.sha256}
                           </p>
                         </div>
 
-                        {/* Right */}
                         <div className="flex items-center gap-4">
-                          {/* Risk */}
                           <div
                             className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                              item.suspiciousScore >
-                              70
-                                ? "bg-red-500/10 text-red-400"
-                                : item.suspiciousScore >
-                                  40
-                                ? "bg-yellow-500/10 text-yellow-400"
-                                : "bg-emerald-500/10 text-emerald-400"
+                              item.suspiciousScore > 70
+                                ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                                : item.suspiciousScore > 40
+                                ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             }`}
                           >
-                            Risk:{" "}
-                            {
-                              item.suspiciousScore
-                            }
-                            %
+                            Risk: {item.suspiciousScore}%
                           </div>
 
-                          {/* Date */}
-                          <div className="text-sm text-zinc-500">
-                            {new Date(
-                              item.createdAt
-                            ).toLocaleDateString()}
+                          <div className="text-sm text-zinc-500 whitespace-nowrap">
+                            {new Date(item.createdAt).toLocaleDateString()}
                           </div>
                         </div>
                       </div>

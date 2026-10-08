@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Shield,
   Upload,
   FileSearch,
   Lock,

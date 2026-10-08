@@ -1,62 +1,49 @@
 "use client";
 
 import { useState } from "react";
-
 import { useRouter } from "next/navigation";
-
 import Link from "next/link";
-
 import {
   Shield,
   Lock,
   Mail,
   User,
 } from "lucide-react";
-
 import api from "@/lib/axios";
+import axios from "axios";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [formData, setFormData] =
-    useState({
-      name: "",
-      email: "",
-      password: "",
-    });
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent
-  ) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       setLoading(true);
 
-      await api.post(
-        "/auth/register",
-        formData
-      );
+      await api.post("/auth/register", formData);
 
       router.push("/login");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-
-      alert(
-        error.response?.data?.message
-      );
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || "Registration failed");
+      } else {
+        alert("An unexpected error occurred during registration.");
+      }
     } finally {
       setLoading(false);
     }
@@ -90,10 +77,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
           <div>
             <label className="mb-2 block text-sm text-zinc-400">
@@ -106,6 +90,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 name="name"
+                required
                 placeholder="Enter your name"
                 className="w-full bg-transparent p-4 text-white outline-none placeholder:text-zinc-600"
                 onChange={handleChange}
@@ -125,6 +110,7 @@ export default function RegisterPage() {
               <input
                 type="email"
                 name="email"
+                required
                 placeholder="Enter your email"
                 className="w-full bg-transparent p-4 text-white outline-none placeholder:text-zinc-600"
                 onChange={handleChange}
@@ -144,6 +130,7 @@ export default function RegisterPage() {
               <input
                 type="password"
                 name="password"
+                required
                 placeholder="Create a password"
                 className="w-full bg-transparent p-4 text-white outline-none placeholder:text-zinc-600"
                 onChange={handleChange}
@@ -153,12 +140,11 @@ export default function RegisterPage() {
 
           {/* Button */}
           <button
+            type="submit"
             disabled={loading}
             className="w-full rounded-2xl bg-emerald-500 py-4 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading
-              ? "Creating Account..."
-              : "Register"}
+            {loading ? "Creating Account..." : "Register"}
           </button>
         </form>
 

@@ -7,6 +7,7 @@ import {
   boolean,
   real,
   text,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 import { usersTable } from "./users.schema.js";
@@ -71,6 +72,19 @@ export const analysesTable = pgTable("analyses", {
   isSuspicious: boolean("is_suspicious").default(false),
 
   suspiciousScore: integer("suspicious_score").default(0),
+
+  // ML Multi-class classification & SHAP transparency fields
+  malwareFamily: varchar("malware_family", {
+    length: 100,
+  }).default("Benign"),
+
+  confidence: real("confidence").default(0.95),
+
+  familyProbabilities: jsonb("family_probabilities"),
+
+  shapExplanation: jsonb("shap_explanation"),
+
+  featureVector: jsonb("feature_vector"),
 
   analysisStatus: varchar("analysis_status", {
     length: 50,
