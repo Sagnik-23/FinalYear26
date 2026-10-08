@@ -1,69 +1,50 @@
 "use client";
 
 import { useState } from "react";
-
 import { useRouter } from "next/navigation";
-
 import Link from "next/link";
-
 import {
   Shield,
   Lock,
   Mail,
 } from "lucide-react";
-
 import api from "@/lib/axios";
-
 import { useAuth } from "@/context/AuthContext";
+import axios from "axios";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [formData, setFormData] =
-    useState({
-      email: "",
-      password: "",
-    });
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent
-  ) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       setLoading(true);
 
-      const res = await api.post(
-        "/auth/login",
-        formData
-      );
+      const res = await api.post("/auth/login", formData);
 
-      login(
-        res.data.token,
-        res.data.user
-      );
-
-      router.push("/dashboard");
-    } catch (error: any) {
+      login(res.data.token, res.data.user);
+      router.push("/upload");
+    } catch (error: unknown) {
       console.error(error);
-
-      alert(
-        error.response?.data?.message
-      );
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || "Login failed");
+      } else {
+        alert("An unexpected error occurred during login.");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,10 +78,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
           <div>
             <label className="mb-2 block text-sm text-zinc-400">
@@ -113,6 +91,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 name="email"
+                required
                 placeholder="Enter your email"
                 className="w-full bg-transparent p-4 text-white outline-none placeholder:text-zinc-600"
                 onChange={handleChange}
@@ -132,6 +111,7 @@ export default function LoginPage() {
               <input
                 type="password"
                 name="password"
+                required
                 placeholder="Enter your password"
                 className="w-full bg-transparent p-4 text-white outline-none placeholder:text-zinc-600"
                 onChange={handleChange}
@@ -141,12 +121,11 @@ export default function LoginPage() {
 
           {/* Submit */}
           <button
+            type="submit"
             disabled={loading}
             className="w-full rounded-2xl bg-emerald-500 py-4 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading
-              ? "Authenticating..."
-              : "Login"}
+            {loading ? "Authenticating..." : "Login"}
           </button>
         </form>
 
